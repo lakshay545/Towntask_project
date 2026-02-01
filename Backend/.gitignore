@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# Backend secrets
+backend/config/
+backend/.env
+
+# Logs
+*.log
+
+# Database
+*.sqlite
+*.db
+database/
+db/
+
+# Build
+dist/
+build/
