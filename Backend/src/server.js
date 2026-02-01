@@ -3,24 +3,28 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json()); // This allows us to send/receive JSON data
+app.use(express.json());
 
-// Basic Route for testing
+// Database Connection
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("✅ TownTask Database Connected!"))
+    .catch((err) => {
+        console.log("❌ DB Connection Error Details:");
+        console.log(err.message); // This will print the specific reason
+    });
+
+// Test Route
 app.get('/', (req, res) => {
-    res.send('TownTask Backend is running!');
+    res.send('TownTask API is live...');
 });
 
-// Port configuration
 const PORT = process.env.PORT || 5000;
-
-// Start Server
 app.listen(PORT, () => {
-    console.log(`Server is sprinting on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });

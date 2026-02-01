@@ -1,1 +1,35 @@
-const mongoose = require('mongoose');\nconst bcrypt = require('bcryptjs'); // For password hashing\n\nconst UserSchema = new mongoose.Schema({\n  username: {\n    type: String,\n    required: true,\n    unique: true,\n    trim: true,\n    minlength: 3,\n    maxlength: 30\n  },\n  email: {\n    type: String,\n    required: true,\n    unique: true,\n    trim: true,\n    lowercase: true,\n    match: [/.+@.+\..+/, 'Please fill a valid email address']\n  },\n  password: {\n    type: String,\n    required: true,\n    minlength: 6\n  },\n  role: {\n    type: String,\n    enum: ['worker', 'job_provider'],\n    default: 'worker',\n    required: true\n  },\n  skills: [{\n    type: String,\n    trim: true,\n    lowercase: true\n  }],\n  location: {\n    type: {\n      type: String,\n      enum: ['Point'], // GeoJSON Point\n      default: 'Point'\n    },\n    coordinates: { // [longitude, latitude]\n      type: [Number],\n      required: true,\n      index: '2dsphere' // Geospatial index for location-based queries\n    },\n    address: { // Optional, for display purposes\n      type: String,\n      trim: true\n    }\n  },\n  availability: {\n    type: [Date], // Array of available dates or time slots\n    default: []\n  },\n  trust_score: {\n    type: Number,\n    default: 0,\n    min: 0,\n    max: 5\n  },\n  profile_picture: {\n    type: String,\n    default: 'default.jpg' // Placeholder for user avatar\n  },\n  phone_number: {\n    type: String,\n    trim: true,\n    match: [/^\d{10}$/, 'Please fill a valid 10-digit phone number'] // Example: for US numbers\n  }\n}, { timestamps: true });\n\n// Pre-save hook to hash passwords\nUserSchema.pre('save', async function(next) {\n  if (!this.isModified('password')) {\n    next();\n  }\n  const salt = await bcrypt.genSalt(10);\n  this.password = await bcrypt.hash(this.password, salt);\n});\n\n// Method to compare passwords\nUserSchema.methods.matchPassword = async function(enteredPassword) {\n  return await bcrypt.compare(enteredPassword, this.password);\n};\n\nmodule.exports = mongoose.model('User', UserSchema);\n
+const mongoose = require('mongoose');
+
+const UserSchema = new mongoose.Schema({
+    // Step 1: The "Hire vs Earn" Choice
+    userRole: {
+        type: String,
+        enum: ['client', 'freelancer'], // User must choose one
+        required: true
+    },
+    // Step 2: Basic Login Details
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String }, // Optional if using Google/Facebook login
+    googleId: { type: String }, 
+    
+    // Step 3: Location & Skills
+    city: { type: String, required: true, lowercase: true },
+    skills: [String], // Only needed for freelancers
+    
+    // Step 4: Trust & Verification (Optional but requested for "Working")
+    isVerified: { type: Boolean, default: false },
+    socialLinks: {
+        linkedin: String,
+        github: String
+    },
+    profilePhoto: String,
+    
+    // Step 5: Ratings
+    rating: { type: Number, default: 0 },
+    reviewsCount: { type: Number, default: 0 },
+    
+    createdAt: { type: Date, default: Date.now }
+});
+
+module.exports = mongoose.model('User', UserSchema);
