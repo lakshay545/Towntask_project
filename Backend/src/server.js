@@ -15,7 +15,7 @@ app.use(express.json());
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ TownTask Database Connected!"))
     .catch((err) => {
-        console.log("❌ DB Connection Error Details:");
+        console.log("❌  DB Connection Error Details:");
         console.log(err.message); // This will print the specific reason
     });
 
