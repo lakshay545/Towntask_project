@@ -11,6 +11,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 1. Import the route file at the top
+const authRoutes = require('./routes/authRoutes');
+
+// 2. Middleware (This MUST come before the routes)
+app.use(express.json()); 
+
+// 3. Connect the prefix to the file
+// This makes the URL: http://localhost:5000/api/auth/register
+app.use('/api/auth', authRoutes);
+
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ TownTask Database Connected!"))
