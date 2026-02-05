@@ -1,93 +1,125 @@
-import Register from './Register';
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Briefcase, UserPlus } from 'lucide-react';
 
-// A simple Navbar to make it look official
 const Navbar = () => (
-  <nav style={{ padding: '20px 50px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)' }}>
-    <h2 style={{ color: '#fff', margin: 0, letterSpacing: '1px' }}>TOWN<span style={{ color: '#4f46e5' }}>TASK</span></h2>
-    <Link to="/login" style={{ color: '#fff', textDecoration: 'none', fontWeight: 'bold' }}>Login</Link>
+  <nav style={{ 
+    padding: '20px 80px', 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    position: 'absolute', 
+    width: '100%', 
+    zIndex: 10,
+    boxSizing: 'border-box'
+  }}>
+    <h2 style={{ color: '#fff', margin: 0, fontWeight: '800', fontSize: '24px' }}>
+      TOWN<span style={{ color: '#f50057' }}>TASK</span>
+    </h2>
+    <div style={{ display: 'flex', gap: '30px', alignItems: 'center' }}>
+      <Link to="/login" style={{ color: '#fff', textDecoration: 'none', fontWeight: '500' }}>Log In</Link>
+      <Link to="/register/client" style={{ 
+        color: '#fff', 
+        textDecoration: 'none', 
+        border: '2px solid #fff', 
+        padding: '8px 20px', 
+        borderRadius: '5px' 
+      }}>Post a Project</Link>
+    </div>
   </nav>
 );
 
-const Home = () => {
+const Hero = () => {
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%)', 
-      color: '#fff',
-      fontFamily: "'Inter', sans-serif"
-    }}>
-      <Navbar />
-      
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh', textAlign: 'center' }}>
+    <div style={{ position: 'relative', height: '100vh', width: '100%', overflow: 'hidden' }}>
+      {/* BACKGROUND VIDEO */}
+      <video
+        autoPlay
+        loop
+        muted
+        style={{
+          position: 'absolute',
+          width: '100%',
+          left: '50%',
+          top: '50%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: 'translate(-50%, -50%)',
+          zIndex: '-1'
+        }}
+      >
+        <source src="/hero-video.mp4" type="video/mp4" />
+      </video>
+
+      {/* OVERLAY FOR TEXT READABILITY */}
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, left: 0, 
+        width: '100%', height: '100%', 
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        zIndex: 0 
+      }}></div>
+
+      {/* CONTENT */}
+      <div style={{ 
+        position: 'relative', 
+        zIndex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'center', 
+        height: '100%', 
+        padding: '0 80px',
+        maxWidth: '800px'
+      }}>
         <motion.h1 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          style={{ fontSize: '3.5rem', marginBottom: '10px' }}
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          style={{ fontSize: '3.5rem', color: '#fff', margin: '0 0 20px 0', lineHeight: '1.1' }}
         >
-          Hometown Work, <span style={{ color: '#818cf8' }}>Global Quality.</span>
+          Hire the best experts <br /> for any task, online.
         </motion.h1>
         
-        <motion.p 
+        <motion.ul 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          style={{ fontSize: '1.2rem', color: '#94a3b8', maxWidth: '600px', marginBottom: '40px' }}
+          transition={{ delay: 0.5 }}
+          style={{ color: '#fff', listStyle: 'none', padding: 0, fontSize: '1.2rem', marginBottom: '40px' }}
         >
-          The most trusted way to hire local experts or earn money using your skills in your city.
-        </motion.p>
+          <li style={{ marginBottom: '10px' }}>✓ Local city-based experts</li>
+          <li style={{ marginBottom: '10px' }}>✓ Save up to 50% & get quotes for free</li>
+          <li>✓ Pay only when you're 100% happy</li>
+        </motion.ul>
 
-        <div style={{ display: 'flex', gap: '25px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          {/* HIRE CARD */}
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Link to="/register/client" style={{ textDecoration: 'none' }}>
-              <div style={{ 
-                background: 'rgba(255, 255, 255, 0.05)', 
-                border: '1px solid rgba(255,255,255,0.1)',
-                padding: '40px', borderRadius: '20px', width: '220px', cursor: 'pointer',
-                transition: 'all 0.3s ease'
-              }}>
-                <Briefcase size={40} color="#818cf8" style={{ marginBottom: '15px' }} />
-                <h3 style={{ color: '#fff' }}>I want to Hire</h3>
-                <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>Find local talent for your projects.</p>
-              </div>
-            </Link>
-          </motion.div>
-
-          {/* EARN CARD */}
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Link to="/register/freelancer" style={{ textDecoration: 'none' }}>
-              <div style={{ 
-                background: 'linear-gradient(145deg, #4f46e5, #3730a3)', 
-                padding: '40px', borderRadius: '20px', width: '220px', cursor: 'pointer',
-                boxShadow: '0 10px 30px rgba(79, 70, 229, 0.3)'
-              }}>
-                <UserPlus size={40} color="#fff" style={{ marginBottom: '15px' }} />
-                <h3 style={{ color: '#fff' }}>I want to Earn</h3>
-                <p style={{ fontSize: '0.9rem', color: '#e0e7ff' }}>Showcase skills & get paid locally.</p>
-              </div>
-            </Link>
-          </motion.div>
+        <div style={{ display: 'flex', gap: '15px' }}>
+          <Link to="/register/client">
+            <button style={{ ...btnStyle, backgroundColor: '#f50057' }}>Hire a Freelancer</button>
+          </Link>
+          <Link to="/register/freelancer">
+            <button style={{ ...btnStyle, backgroundColor: 'transparent', border: '2px solid #fff' }}>Earn Money Freelancing</button>
+          </Link>
         </div>
       </div>
     </div>
   );
 };
 
+const btnStyle = {
+  padding: '15px 30px',
+  fontSize: '1rem',
+  fontWeight: '700',
+  color: '#fcf8f8',
+  border: 'none',
+  borderRadius: '4px',
+  cursor: 'pointer',
+  transition: '0.3s'
+};
+
 function App() {
   return (
     <Router>
+      <Navbar />
       <Routes>
-        {/* The Landing Page */}
-       <Route path="/register/:role" element={<Register />} />
-
-        {/* This is a "Catch-All" route. If a user types a wrong URL, 
-            it sends them back to the Home page instead of a 404 */}
-        <Route path="*" element={<Home />} />
+        <Route path="/" element={<Hero />} />
       </Routes>
     </Router>
   );

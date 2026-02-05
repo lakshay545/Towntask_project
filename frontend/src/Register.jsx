@@ -4,7 +4,7 @@ import { useParams } from 'react-router-dom';
 
 const Register = () => {
   const { role } = useParams(); // Gets 'client' or 'freelancer' from URL
-
+ 
   return (
     <div style={{ 
       minHeight: '100vh', 
