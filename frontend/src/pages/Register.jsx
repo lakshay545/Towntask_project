@@ -10,7 +10,8 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
-    city: ''
+    city: '',
+    userRole:''
   });
 
   const handleSubmit = async (e) => {
@@ -18,7 +19,7 @@ const Register = () => {
     try {
       const response = await axios.post('http://localhost:5000/api/auth/register', {
         ...formData,
-        role: role || 'client'
+        userRole: role || 'client'
       });
       alert("Registration Successful!");
       navigate('/login');

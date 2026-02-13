@@ -3,37 +3,33 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 
+// 1. Load Environment Variables
 dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// 2. Global Middleware
+app.use(cors()); // Allows Frontend (5173) to talk to Backend (5000)
+app.use(express.json()); // Parses incoming JSON data into req.body
 
-// 1. Import the route file at the top
+// 3. Import and Initialize Routes
 const authRoutes = require('./routes/authRoutes');
+app.use('/api/auth', authRoutes); // URLs will be http://localhost:5000/api/auth/...
 
-// 2. Middleware (This MUST come before the routes)
-app.use(express.json()); 
-
-// 3. Connect the prefix to the file
-// This makes the URL: http://localhost:5000/api/auth/register
-app.use('/api/auth', authRoutes);
-
-// Database Connection
+// 4. Database Connection
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ TownTask Database Connected!"))
     .catch((err) => {
-        console.log("❌  DB Connection Error Details:");
-        console.log(err.message); // This will print the specific reason
+        console.log("❌ DB Connection Error Details:");
+        console.log(err.message); 
     });
 
-// Test Route
+// 5. Base Test Route
 app.get('/', (req, res) => {
     res.send('TownTask API is live...');
 });
 
+// 6. Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);

@@ -7,13 +7,15 @@ const Login = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: '', password: '' });
 
-  const handleSubmit = async (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // THE UPDATED CODE GOES HERE:
       const res = await axios.post('http://localhost:5000/api/auth/login', formData);
-      localStorage.setItem('token', res.data.token); // Save login session
+      localStorage.setItem('token', res.data.token); 
       alert("Login Successful!");
-      navigate('/'); // Take user back to home after login
+      navigate('/dashboard'); // This now sends them to the Dashboard instead of Home
+      
     } catch (err) {
       // This handles the "Invalid Credentials" error from your image!
       alert(err.response?.data?.msg || "Login Failed");

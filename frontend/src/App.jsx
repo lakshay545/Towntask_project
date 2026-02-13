@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import Register from './pages/Register';
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
 
 // ============ NAVBAR COMPONENT ============
 // ============ NAVBAR COMPONENT ============
@@ -761,8 +762,10 @@ function App() {
             </>
           } />
 
-<Route path="/register/:role" element={<Register />} />
-<Route path="/login" element={<div style={{color: 'white', padding: '100px'}}>Login Page Coming Soon...</div>} />
+{/* Authentication & Dashboard Routes */}
+          <Route path="/register/:role" element={<Register />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </div>
     </Router>
