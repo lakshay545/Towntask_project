@@ -8,20 +8,19 @@ dotenv.config();
 
 const app = express();
 
-// 2. Global Middleware
-app.use(cors()); // Allows Frontend (5173) to talk to Backend (5000)
-app.use(express.json()); // Parses incoming JSON data into req.body
+// 2. Global Middleware (The "Security & Translation" Layer)
+app.use(cors()); 
+app.use(express.json()); // This MUST be above routes to read SOS data
 
-// 3. Import and Initialize Routes
-const authRoutes = require('./routes/authRoutes');
-app.use('/api/auth', authRoutes); // URLs will be http://localhost:5000/api/auth/...
+// 3. Routes (The "Traffic Lights")
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/emergency', require('./routes/emergencyRoutes')); // New SOS Routes
 
 // 4. Database Connection
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ TownTask Database Connected!"))
     .catch((err) => {
-        console.log("❌ DB Connection Error Details:");
-        console.log(err.message); 
+        console.log("❌ DB Connection Error:", err.message);
     });
 
 // 5. Base Test Route
