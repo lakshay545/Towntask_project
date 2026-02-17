@@ -3,7 +3,10 @@ const router = express.Router();
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); 
-// THE REGISTRATION ROUTE
+const auth = require('../middlewares/auth'); // Added for protected verification
+const { verifyVolunteer } = require('../controllers/authController'); // Link to the logic
+
+// --- THE REGISTRATION ROUTE ---
 router.post('/register', async (req, res) => {
     try {
         const { name, email, password, city, userRole } = req.body;
@@ -12,8 +15,16 @@ router.post('/register', async (req, res) => {
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ msg: "User already exists" });
 
-        // 2. Create the user with the "Hire or Earn" role
-        user = new User({ name, email, password, city, userRole });
+        // 2. Create the user 
+        // We add default location coordinates [0, 0] to prevent GeoJSON errors
+        user = new User({ 
+            name, 
+            email, 
+            password, 
+            city, 
+            userRole,
+            location: { type: 'Point', coordinates: [0, 0] } 
+        });
 
         // 3. Encrypt password
         const salt = await bcrypt.genSalt(10);
@@ -25,10 +36,11 @@ router.post('/register', async (req, res) => {
 
     } catch (err) {
         console.error(err);
-        res.status(500).send("Server Error");
+        res.status(500).send("Server Error during registration");
     }
 });
-// LOGIN ROUTE
+
+// --- LOGIN ROUTE ---
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -41,37 +53,41 @@ router.post('/login', async (req, res) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
-        // 3. If everything is correct, send a success message
-        // (In the next step, we will add a "Token" here for security)
-        // ................................................................................................................
+        // 3. Create and Send Token
+        const payload = {
+            user: {
+                id: user.id,
+                role: user.userRole 
+            }
+        };
 
+        jwt.sign(
+            payload,
+            process.env.JWT_SECRET,
+            { expiresIn: '24h' }, 
+            (err, token) => {
+                if (err) throw err;
+                res.json({
+                    token,
+                    msg: "Login successful!",
+                    user: { 
+                        name: user.name, 
+                        role: user.userRole, 
+                        city: user.city,
+                        isVerified: user.volunteerDetails.isVerified // Useful for Frontend UI
+                    }
+                });
+            }
+        );
 
-// 3. Create a Token
-const payload = {
-    user: {
-        id: user.id,
-        role: user.userRole // 'client' or 'freelancer'
-    }
-};
-
-jwt.sign(
-    payload,
-    process.env.JWT_SECRET,
-    { expiresIn: '24h' }, // User stays logged in for 24 hours
-    (err, token) => {
-        if (err) throw err;
-        res.json({
-            token,
-            msg: "Login successful!",
-            user: { name: user.name, role: user.userRole, city: user.city }
-        });
-    }
-);
- 
     } catch (err) {
         console.error(err.message);
-        res.status(500).send("Server Error");
+        res.status(500).send("Server Error during login");
     }
 });
+
+// --- VERIFICATION ROUTE (FEATURE 4) ---
+// Note: We use the logic from authController.js
+router.post('/verify-volunteer', auth, verifyVolunteer);
 
 module.exports = router;
