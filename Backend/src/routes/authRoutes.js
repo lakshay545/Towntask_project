@@ -3,36 +3,48 @@ const router = express.Router();
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); 
-const auth = require('../middlewares/auth'); // Added for protected verification
-const { verifyVolunteer } = require('../controllers/authController'); // Link to the logic
+const auth = require('../middlewares/auth'); 
+const { verifyVolunteer } = require('../controllers/authController');
 
-// --- THE REGISTRATION ROUTE ---
+// --- 1. REGISTRATION (STEP 1) ---
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, password, city, userRole } = req.body;
+        const { name, email, password, mobile, city, userRole } = req.body;
 
-        // 1. Check if user already exists
+        // Validation
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ msg: "User already exists" });
 
-        // 2. Create the user 
-        // We add default location coordinates [0, 0] to prevent GeoJSON errors
+        // Create user with new tiered verification fields
         user = new User({ 
             name, 
             email, 
+            mobile, // New field required by updated User.js
             password, 
             city, 
             userRole,
+            volunteer_status: 'NOT_APPLIED', // Default status for Step 2
+            verification_level: 'NONE',
             location: { type: 'Point', coordinates: [0, 0] } 
         });
 
-        // 3. Encrypt password
+        // Encrypt password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
 
-        // 4. Save to MongoDB
         await user.save();
-        res.status(201).json({ msg: "User registered successfully!", role: user.userRole });
+
+        // Send token immediately so they can see the "Volunteer Choice" page
+        const payload = { user: { id: user.id, role: user.userRole } };
+
+        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' }, (err, token) => {
+            if (err) throw err;
+            res.status(201).json({ 
+                token, 
+                msg: "Registration Successful! Moving to Step 2...",
+                user: { name: user.name, role: user.userRole }
+            });
+        });
 
     } catch (err) {
         console.error(err);
@@ -40,45 +52,32 @@ router.post('/register', async (req, res) => {
     }
 });
 
-// --- LOGIN ROUTE ---
+// --- 2. LOGIN ROUTE ---
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // 1. Check if the user exists
         let user = await User.findOne({ email });
         if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
 
-        // 2. Compare the typed password with the encrypted one in DB
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
-        // 3. Create and Send Token
-        const payload = {
-            user: {
-                id: user.id,
-                role: user.userRole 
-            }
-        };
+        const payload = { user: { id: user.id, role: user.userRole } };
 
-        jwt.sign(
-            payload,
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }, 
-            (err, token) => {
-                if (err) throw err;
-                res.json({
-                    token,
-                    msg: "Login successful!",
-                    user: { 
-                        name: user.name, 
-                        role: user.userRole, 
-                        city: user.city,
-                        isVerified: user.volunteerDetails.isVerified // Useful for Frontend UI
-                    }
-                });
-            }
-        );
+        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' }, (err, token) => {
+            if (err) throw err;
+            res.json({
+                token,
+                msg: "Login successful!",
+                user: { 
+                    name: user.name, 
+                    role: user.userRole, 
+                    volunteer_status: user.volunteer_status, // Track for Dashboard UI
+                    isVerified: user.volunteer_status === 'VERIFIED'
+                }
+            });
+        });
 
     } catch (err) {
         console.error(err.message);
@@ -86,8 +85,24 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// --- VERIFICATION ROUTE (FEATURE 4) ---
-// Note: We use the logic from authController.js
+// --- 3. SKIP VOLUNTEER (STEP 2 LOGIC) ---
+router.post('/skip-volunteer', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ msg: "User not found" });
+
+        user.volunteer_status = 'NOT_APPLIED';
+        user.last_reminder_at = Date.now(); // Start the 48-hour timer
+        user.reminder_count = 0;
+
+        await user.save();
+        res.json({ msg: "Selection skipped. You will be reminded later." });
+    } catch (err) {
+        res.status(500).send("Server Error");
+    }
+});
+
+// --- 4. VERIFICATION ROUTES ---
 router.post('/verify-volunteer', auth, verifyVolunteer);
 
 module.exports = router;

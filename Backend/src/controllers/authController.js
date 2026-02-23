@@ -36,3 +36,30 @@ exports.verifyVolunteer = async (req, res) => {
     res.status(500).send("Server Error during verification");
   }
 };
+// Instant Verification for "Skip" users during a live emergency
+exports.instantVerify = async (req, res) => {
+    const { aadhaarNumber } = req.body;
+
+    // Validate 12-digit Aadhaar format
+    if (!/^\d{12}$/.test(aadhaarNumber)) {
+        return res.status(400).json({ msg: "Aadhaar must be exactly 12 digits." });
+    }
+
+    try {
+        const user = await User.findById(req.user.id);
+        
+        // Upgrade to TEMP_VERIFIED
+        user.volunteer_status = 'TEMP_VERIFIED';
+        user.verification_level = 'TEMP';
+        user.identityData.aadhaarMasked = `XXXX-XXXX-${aadhaarNumber.slice(-4)}`;
+        user.volunteerDetails.temp_emergency_count = 0; 
+
+        await user.save();
+        res.json({ 
+            msg: "Hero Mode Activated! You can now accept this emergency.",
+            status: 'TEMP_VERIFIED' 
+        });
+    } catch (err) {
+        res.status(500).send("Verification failed");
+    }
+};
