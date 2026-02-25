@@ -3,10 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- 1. CRITICAL IMPORTS (Ensure these files exist!) ---
+import VolunteerChoice from './pages/VolunteerChoice';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import VolunteerChoice from './pages/VolunteerChoice';
 import VolunteerDashboard from './pages/VolunteerDashboard';
 
 // ============ NAVBAR COMPONENT ============
@@ -147,8 +147,7 @@ function App() {
           
           {/* Auth Routes - UPDATED to handle /register/client etc. */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register/*" element={<Register />} /> 
-          
+          <Route path="/register/*" element={<Register />} />          
           {/* Functional Routes */}
           <Route path="/volunteer-choice" element={<VolunteerChoice />} />
           <Route path="/dashboard" element={<Dashboard />} />

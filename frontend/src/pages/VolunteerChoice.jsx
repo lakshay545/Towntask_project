@@ -1,27 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { motion } from 'framer-motion'; // Added for animations
+import { motion } from 'framer-motion';
 
 const VolunteerChoice = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleDecision = async (choice) => {
+    if (isLoading) return; // Prevent multiple clicks
+    setIsLoading(true);
+
     const token = localStorage.getItem('token');
     
     if (choice === 'YES') {
-      // Directs to your KYC/Verification flow
+      // User opted-in, send them to the verification upload page
       navigate('/full-verification'); 
     } else {
       try {
         // Notifies backend that user skipped, then moves to dashboard
+        // We use a timeout or try/catch so the user isn't stuck if the server is down (Error 500/404)
         await axios.post('http://localhost:5000/api/auth/skip-volunteer', {}, {
           headers: { 'x-auth-token': token }
         });
-        navigate('/dashboard');
       } catch (err) {
-        // Even if the API fails, we don't want to lock the user out of their dashboard
-        console.error("Skip failed:", err);
+        console.error("Server sync failed, proceeding to dashboard:", err);
+      } finally {
+        // Always navigate to dashboard even if backend call fails
         navigate('/dashboard');
       }
     }
@@ -30,73 +35,86 @@ const VolunteerChoice = () => {
   return (
     <div style={containerStyle}>
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
         style={cardStyle}
       >
-        <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🛡️</div>
-        <h1 style={{ color: '#fff', fontSize: '2rem', fontWeight: '900' }}>
+        <div style={{ fontSize: '3.5rem', marginBottom: '15px' }}>🛡️</div>
+        
+        <h1 style={{ color: '#fff', fontSize: '2.2rem', fontWeight: '900', letterSpacing: '-1px' }}>
           Be a <span style={{ color: '#f50057' }}>Community Hero</span>
         </h1>
-        <p style={{ color: '#aaa', margin: '20px 0', lineHeight: '1.6' }}>
-          Would you like to become a Community Emergency Volunteer? <br />
-          <strong>Verified volunteers</strong> get higher trust scores and priority visibility on tasks.
+        
+        <p style={{ color: '#aaa', margin: '20px 0', lineHeight: '1.7', fontSize: '1.05rem' }}>
+          Would you like to join our elite squad of <strong>Emergency Volunteers</strong>? <br />
+          Verified heroes receive a <span style={{ color: '#f50057' }}>special badge</span>, 
+          higher trust scores, and priority visibility on high-paying tasks.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '30px' }}>
           <motion.button 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.03, boxShadow: '0 0 20px rgba(245, 0, 87, 0.4)' }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => handleDecision('YES')} 
-            style={yesBtn}
+            disabled={isLoading}
+            style={{ ...yesBtn, opacity: isLoading ? 0.7 : 1 }}
           >
-            YES, I'M IN
+            {isLoading ? 'Processing...' : "YES, I'M IN"}
           </motion.button>
 
           <motion.button 
             whileHover={{ color: '#fff' }}
             onClick={() => handleDecision('SKIP')} 
+            disabled={isLoading}
             style={skipBtn}
           >
             Maybe later, take me to Dashboard
           </motion.button>
         </div>
+        
+        <p style={{ fontSize: '0.8rem', color: '#444', marginTop: '20px' }}>
+          *Verification requires a valid Government ID.
+        </p>
       </motion.div>
     </div>
   );
 };
 
-// --- STYLES (Fixed the missing containerStyle) ---
+// --- STYLES ---
 
 const containerStyle = {
   minHeight: '100vh',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#000', // Matches the app theme
-  padding: '20px'
+  background: 'radial-gradient(circle at center, #111 0%, #000 100%)',
+  padding: '20px',
+  fontFamily: "'Sora', sans-serif"
 };
 
 const cardStyle = { 
-  background: '#111', 
+  background: 'rgba(17, 17, 17, 0.8)', 
   padding: '50px 40px', 
-  borderRadius: '20px', 
-  border: '1px solid #222', 
-  maxWidth: '450px', 
+  borderRadius: '24px', 
+  border: '1px solid rgba(245, 0, 87, 0.1)', 
+  maxWidth: '480px', 
   textAlign: 'center',
-  boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+  backdropFilter: 'blur(10px)',
+  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
 };
 
 const yesBtn = { 
-  padding: '16px', 
-  background: '#f50057', // Using your brand pink
+  padding: '18px', 
+  background: '#f50057', 
   color: '#fff', 
   border: 'none', 
-  borderRadius: '8px', 
+  borderRadius: '12px', 
   cursor: 'pointer', 
-  fontWeight: 'bold',
-  fontSize: '1rem',
-  letterSpacing: '1px'
+  fontWeight: '800',
+  fontSize: '1.1rem',
+  letterSpacing: '1px',
+  transition: 'all 0.3s ease'
 };
 
 const skipBtn = { 
@@ -106,8 +124,9 @@ const skipBtn = {
   border: 'none', 
   borderRadius: '5px', 
   cursor: 'pointer',
-  fontSize: '0.9rem',
-  textDecoration: 'underline'
+  fontSize: '0.95rem',
+  textDecoration: 'none',
+  transition: 'color 0.2s ease'
 };
 
 export default VolunteerChoice;
