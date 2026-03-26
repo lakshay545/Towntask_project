@@ -43,13 +43,13 @@ const VolunteerChoice = () => {
         <div style={{ fontSize: '3.5rem', marginBottom: '15px' }}>🛡️</div>
         
         <h1 style={{ color: '#fff', fontSize: '2.2rem', fontWeight: '900', letterSpacing: '-1px' }}>
-          Be a <span style={{ color: '#f50057' }}>Community Hero</span>
+          Be a <span style={{ color: '#f50057' }}>Trusted Worker</span>
         </h1>
         
         <p style={{ color: '#aaa', margin: '20px 0', lineHeight: '1.7', fontSize: '1.05rem' }}>
-          Would you like to join our elite squad of <strong>Emergency Volunteers</strong>? <br />
-          Verified heroes receive a <span style={{ color: '#f50057' }}>special badge</span>, 
-          higher trust scores, and priority visibility on high-paying tasks.
+          Would you like to join our network of <strong>skilled workers</strong>? <br />
+          Verified workers receive a <span style={{ color: '#f50057' }}>special badge</span>, 
+          higher ratings, and more job opportunities in your area.
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '30px' }}>
@@ -74,7 +74,7 @@ const VolunteerChoice = () => {
         </div>
         
         <p style={{ fontSize: '0.8rem', color: '#444', marginTop: '20px' }}>
-          *Verification requires a valid Government ID.
+          *Profile verification helps build trust with job posters.
         </p>
       </motion.div>
     </div>
@@ -119,7 +119,7 @@ const yesBtn = {
 
 const skipBtn = { 
   padding: '10px', 
-  background: 'transparent', 
+  background: 'transparent',
   color: '#666', 
   border: 'none', 
   borderRadius: '5px', 
@@ -128,5 +128,6 @@ const skipBtn = {
   textDecoration: 'none',
   transition: 'color 0.2s ease'
 };
+
 
 export default VolunteerChoice;

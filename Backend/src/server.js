@@ -1,35 +1,27 @@
-const express = require('express');
-const cors = require('cors');
-const dotenv = require('dotenv');
+const { app, server, io } = require('./app');
 const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const { initializeBackgroundTasks } = require('./services/backgroundTaskScheduler');
 
 // 1. Load Environment Variables
 dotenv.config();
 
-const app = express();
-
-// 2. Global Middleware (The "Security & Translation" Layer)
-app.use(cors()); 
-app.use(express.json()); // This MUST be above routes to read SOS data
-
-// 3. Routes (The "Traffic Lights")
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/emergency', require('./routes/emergencyRoutes')); // New SOS Routes
-
-// 4. Database Connection
+// 2. Database Connection
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ TownTask Database Connected!"))
+    .then(() => {
+        console.log("✅ TownTask Database Connected!");
+        // Initialize background tasks AFTER DB connection
+        initializeBackgroundTasks();
+    })
     .catch((err) => {
         console.log("❌ DB Connection Error:", err.message);
+        process.exit(1);
     });
 
-// 5. Base Test Route
-app.get('/', (req, res) => {
-    res.send('TownTask API is live...');
-});
-
-// 6. Start Server
+// 3. Start Server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📡 Socket.io real-time support enabled`);
+    console.log(`🔄 Background tasks running`);
 });

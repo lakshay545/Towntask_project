@@ -1,62 +1,97 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  // BASIC AUTH (Step 1)
-  name: { type: String, required: true },
-  email: { type: String, unique: true, required: true },
-  mobile: { type: String, required: true }, // Added for OTP requirement
+  // --- BASIC AUTH ---
+  name: { type: String, required: true, trim: true },
+  email: { type: String, unique: true, required: true, lowercase: true },
+  mobile: { type: String, required: true }, 
   password: { type: String, required: true },
+  avatar: { type: String, default: null },
+
+  // --- USER ROLE (Poster or Worker) ---
   userRole: { 
     type: String, 
     required: true, 
-    enum: ['client', 'freelancer'] 
+    enum: ['poster', 'worker'] 
   },
 
-  // CORE FEATURE 1 & 3: LOCATION
+  // --- LOCATION ---
+  city: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  address: {
+    type: String,
+    trim: true
+  },
   location: {
     type: { type: String, default: 'Point' },
-    coordinates: { type: [Number], index: '2dsphere', default: [0, 0] } 
+    coordinates: { type: [Number], index: '2dsphere', default: [0, 0] } // [longitude, latitude]
   },
 
-  // NEW VOLUNTEER & VERIFICATION LOGIC (Step 2 & Feature 4)
-  volunteer_status: { 
-    type: String, 
-    enum: ['NOT_APPLIED', 'PENDING_VERIFICATION', 'TEMP_VERIFIED', 'VERIFIED', 'REJECTED'], 
-    default: 'NOT_APPLIED' 
+  // --- WORKER-SPECIFIC FIELDS ---
+  skills: {
+    type: [String],
+    default: [],
+    lowercase: true,
+    trim: true
   },
-  verification_level: {
+  bio: {
     type: String,
-    enum: ['NONE', 'TEMP', 'FULL'],
-    default: 'NONE'
+    maxlength: 500,
+    default: ''
   },
-  
-  volunteerDetails: {
-    status: { type: String, enum: ['ON', 'OFF'], default: 'OFF' }, 
-    trustScore: { type: Number, default: 0 },
-    badges: { type: String, enum: ['None', 'Bronze', 'Silver', 'Gold'], default: 'None' },
-    full_verified_at: { type: Date },
-    temp_emergency_count: { type: Number, default: 0 } // Limit max 2 for TEMP
+  portfolio: {
+    type: [String], // URLs to portfolio items/images
+    default: []
+  },
+  rating: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 5
+  },
+  reviewCount: {
+    type: Number,
+    default: 0
   },
 
-  // IDENTITY SECURITY (Feature 4 Requirements)
-  identityData: {
-    aadhaarMasked: { type: String }, // Store as XXXX-XXXX-1234
-    panMasked: { type: String },    // Store as ABCDE1234F
-    isFaceMatched: { type: Boolean, default: false }
+  // --- ACCOUNT VERIFICATION ---
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  verificationDocument: {
+    type: String, // URL or document ID
+    default: null
   },
 
-  // REMINDER LOGIC (Step 2 Skip Logic)
-  reminder_count: { type: Number, default: 0 }, // Max 3 reminders
-  last_reminder_at: { type: Date },
-
-  // MISUSE PREVENTION (Feature 2)
-  emergencyStats: {
-    usageCountThisMonth: { type: Number, default: 0 },
-    lastSOSDate: { type: Date },
-    reportsAgainst: { type: Number, default: 0 }
+  // --- PROFILE COMPLETION TRACKING ---
+  profileCompletion: {
+    basicInfo: { type: Boolean, default: false },
+    location: { type: Boolean, default: false },
+    skills: { type: Boolean, default: false },
+    verification: { type: Boolean, default: false },
+    portfolio: { type: Boolean, default: false }
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
 
+// --- INDEXES ---
 userSchema.index({ location: "2dsphere" });
+userSchema.index({ city: 1 });
+userSchema.index({ skills: 1 });
+userSchema.index({ email: 1 });
+
+// --- VIRTUALS ---
+userSchema.virtual('profilePercentage').get(function() {
+  const completion = this.profileCompletion;
+  const completed = Object.values(completion).filter(Boolean).length;
+  return Math.round((completed / 5) * 100);
+});
 
 module.exports = mongoose.model('User', userSchema);

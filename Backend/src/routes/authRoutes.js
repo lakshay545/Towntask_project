@@ -11,30 +11,26 @@ router.post('/register', async (req, res) => {
     try {
         const { name, email, password, mobile, city, userRole } = req.body;
 
-        // Validation
         let user = await User.findOne({ email });
         if (user) return res.status(400).json({ msg: "User already exists" });
 
-        // Create user with new tiered verification fields
         user = new User({ 
             name, 
             email, 
-            mobile, // New field required by updated User.js
+            mobile, 
             password, 
             city, 
             userRole,
-            volunteer_status: 'NOT_APPLIED', // Default status for Step 2
+            volunteer_status: 'NOT_APPLIED', 
             verification_level: 'NONE',
             location: { type: 'Point', coordinates: [0, 0] } 
         });
 
-        // Encrypt password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
 
         await user.save();
 
-        // Send token immediately so they can see the "Volunteer Choice" page
         const payload = { user: { id: user.id, role: user.userRole } };
 
         jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' }, (err, token) => {
@@ -73,7 +69,7 @@ router.post('/login', async (req, res) => {
                 user: { 
                     name: user.name, 
                     role: user.userRole, 
-                    volunteer_status: user.volunteer_status, // Track for Dashboard UI
+                    volunteer_status: user.volunteer_status,
                     isVerified: user.volunteer_status === 'VERIFIED'
                 }
             });
@@ -92,7 +88,7 @@ router.post('/skip-volunteer', auth, async (req, res) => {
         if (!user) return res.status(404).json({ msg: "User not found" });
 
         user.volunteer_status = 'NOT_APPLIED';
-        user.last_reminder_at = Date.now(); // Start the 48-hour timer
+        user.last_reminder_at = Date.now(); 
         user.reminder_count = 0;
 
         await user.save();
@@ -102,7 +98,20 @@ router.post('/skip-volunteer', auth, async (req, res) => {
     }
 });
 
-// --- 4. VERIFICATION ROUTES ---
+// --- 4. GET CURRENT USER (The Fix for your 404 Errors!) ---
+router.get('/me', auth, async (req, res) => {
+    try {
+        // Find user by ID from token, but don't send the password back
+        const user = await User.findById(req.user.id).select('-password');
+        if (!user) return res.status(404).json({ msg: "User not found" });
+        res.json(user);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server Error");
+    }
+});
+
+// --- 5. VERIFICATION ROUTES ---
 router.post('/verify-volunteer', auth, verifyVolunteer);
 
 module.exports = router;

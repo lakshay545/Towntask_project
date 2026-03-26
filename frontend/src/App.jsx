@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import VolunteerDashboard from './pages/VolunteerDashboard';
+import FullVerification from './pages/FullVerification';
 
 // ============ NAVBAR COMPONENT ============
 const Navbar = () => {
@@ -152,6 +153,7 @@ function App() {
           <Route path="/volunteer-choice" element={<VolunteerChoice />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/volunteer-dashboard" element={<VolunteerDashboard />} />
+          <Route path="/full-verification" element={<FullVerification />} />
         </Routes>
       </div>
     </Router>
