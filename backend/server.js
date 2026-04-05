@@ -6,6 +6,7 @@ const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 // Import Models
 const Profile = require('./models/Profile');
@@ -25,6 +26,8 @@ const FRONTEND_ORIGIN = process.env.FRONTEND_URL || '*';
 const RAW_MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/towntask';
 const MONGO_URI = RAW_MONGO_URI.trim();
 const corsOrigin = FRONTEND_ORIGIN === '*' ? true : FRONTEND_ORIGIN;
+const frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
+const shouldServeFrontend = process.env.NODE_ENV === 'production' && fs.existsSync(frontendPath);
 
 function maskMongoUri(uri) {
   try {
@@ -55,9 +58,10 @@ const io = new Server(server, {
 });
 
 // Serve frontend static files in production
-if (process.env.NODE_ENV === 'production') {
-  const frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
+if (shouldServeFrontend) {
   app.use(express.static(frontendPath));
+} else if (process.env.NODE_ENV === 'production') {
+  console.warn('⚠️ Frontend dist folder not found. Running API-only mode in production.');
 }
 
 // ===== EMAIL SETUP (Nodemailer) =====
@@ -2326,10 +2330,10 @@ const startServer = async () => {
 };
 
 // Serve frontend for all non-API routes in production
-if (process.env.NODE_ENV === 'production') {
+if (shouldServeFrontend) {
   // Express 5 rejects bare "*" path patterns; use a regex catch-all instead.
   app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'frontend', 'dist', 'index.html'));
+    res.sendFile(path.join(frontendPath, 'index.html'));
   });
 }
 

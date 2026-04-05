@@ -1,12 +1,20 @@
 services:
-  # Backend + Frontend (Single Service - Free Tier)
+  # Backend API service (Frontend is deployed separately on Vercel)
   - type: web
-    name: localwork-app
+    name: localwork-backend
     runtime: node
-    buildCommand: "cd backend && npm install && cd ../frontend && npm install --legacy-peer-deps --include=dev && npm run build"
-    startCommand: "cd backend && NODE_ENV=production node server.js"
+    rootDir: backend
+    buildCommand: "npm install"
+    startCommand: "NODE_ENV=production node server.js"
+    healthCheckPath: /
     envVars:
       - key: MONGO_URI
         sync: false  # Set manually in Render dashboard
       - key: FRONTEND_URL
-        sync: false  # Set to your deployed Render URL
+        sync: false  # Set to your deployed Vercel URL (e.g. https://towntaskproject.vercel.app)
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_SERVICE
+        value: gmail
