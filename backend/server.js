@@ -22,8 +22,22 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = process.env.FRONTEND_URL || '*';
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/towntask';
+const RAW_MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/towntask';
+const MONGO_URI = RAW_MONGO_URI.trim();
 const corsOrigin = FRONTEND_ORIGIN === '*' ? true : FRONTEND_ORIGIN;
+
+function maskMongoUri(uri) {
+  try {
+    const parsed = new URL(uri);
+    if (parsed.password) {
+      parsed.password = '***';
+    }
+    return parsed.toString();
+  } catch (_) {
+    // Fall back to the raw value when URI parsing fails; connect() will emit a detailed error.
+    return uri;
+  }
+}
 
 // Middleware
 app.use(cors({
@@ -2269,7 +2283,7 @@ app.use((err, req, res, next) => {
 // ===== CONNECT TO MONGODB & START SERVER =====
 const startServer = async () => {
   try {
-    console.info(`🔌 Connecting to MongoDB at ${MONGO_URI}...`);
+    console.info(`🔌 Connecting to MongoDB at ${maskMongoUri(MONGO_URI)}...`);
     await mongoose.connect(MONGO_URI);
     console.info('✅ MongoDB connected successfully!');
 
@@ -2289,13 +2303,23 @@ const startServer = async () => {
           console.info(`✅ Server running on port ${PORT}`);
           console.info(`📍 API: http://localhost:${PORT}`);
           console.info(`🌐 LAN: http://0.0.0.0:${PORT} (accessible from phone)`);
-          console.info(`🗄️  DB:  ${MONGO_URI}`);
+          console.info(`🗄️  DB:  ${maskMongoUri(MONGO_URI)}`);
         });
       });
     });
     tester.listen(PORT);
   } catch (err) {
     console.error('❌ MongoDB connection failed:', err.message);
+    if (err.code) {
+      console.error(`❌ MongoDB error code: ${err.code}`);
+    }
+    if ((err.message || '').includes('bad auth')) {
+      console.error('💡 Check Atlas DB username/password and ensure special chars in password are URL-encoded.');
+    } else if ((err.message || '').includes('EBADNAME') || (err.message || '').includes('ENOTFOUND')) {
+      console.error('💡 MONGO_URI host appears malformed. Verify the exact Atlas connection string.');
+    } else if ((err.message || '').includes('Could not connect to any servers')) {
+      console.error('💡 Check Atlas IP Access List (0.0.0.0/0), cluster status, and network reachability.');
+    }
     console.error('💡 Make sure MongoDB is running on your machine (mongod)');
     process.exit(1);
   }
