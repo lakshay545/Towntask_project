@@ -25,6 +25,9 @@ const PORT = process.env.PORT || 5000;
 const FRONTEND_ORIGIN = process.env.FRONTEND_URL || '*';
 const RAW_MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/towntask';
 const MONGO_URI = RAW_MONGO_URI.trim();
+const isProduction = process.env.NODE_ENV === 'production';
+const hasEmailCredentials = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+const OTP_EMAIL_TIMEOUT_MS = Number(process.env.OTP_EMAIL_TIMEOUT_MS || 15000);
 const corsOrigin = FRONTEND_ORIGIN === '*' ? true : FRONTEND_ORIGIN;
 const frontendPath = path.join(__dirname, '..', 'frontend', 'dist');
 const shouldServeFrontend = process.env.NODE_ENV === 'production' && fs.existsSync(frontendPath);
@@ -68,10 +71,21 @@ if (shouldServeFrontend) {
 // Using Ethereal for dev — replace with Gmail/SendGrid in production
 let emailTransporter = null;
 
+function withTimeout(promise, timeoutMs, timeoutMessage) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 async function setupEmail() {
   try {
     // Try environment variables first (for real email)
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    if (hasEmailCredentials) {
       emailTransporter = nodemailer.createTransport({
         service: process.env.EMAIL_SERVICE || 'gmail',
         auth: {
@@ -80,7 +94,15 @@ async function setupEmail() {
         },
       });
       console.info(`📧 Email configured with ${process.env.EMAIL_USER}`);
-    } else {
+      return;
+    }
+
+    if (isProduction) {
+      console.warn('⚠️ EMAIL_USER/EMAIL_PASS missing in production. OTP email delivery is disabled.');
+      return;
+    }
+
+    {
       // Fallback: create Ethereal test account (free, no signup needed)
       const testAccount = await nodemailer.createTestAccount();
       emailTransporter = nodemailer.createTransport({
@@ -101,29 +123,39 @@ async function setupEmail() {
 }
 
 async function sendOtpEmail(toEmail, otp, userName) {
-  if (!emailTransporter || !toEmail) return null;
+  if (!toEmail) return null;
+  if (!emailTransporter) {
+    console.warn('⚠️ OTP email requested but transporter is not configured.');
+    return null;
+  }
+
   try {
-    const info = await emailTransporter.sendMail({
-      from: '"Towntask" <noreply@towntask.app>',
-      to: toEmail,
-      subject: `Your OTP Code: ${otp}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #f8fafc; border-radius: 12px;">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <h1 style="color: #2563eb; margin: 0; font-size: 24px;">🛡️ Towntask</h1>
-          </div>
-          <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-            <p style="color: #334155; font-size: 16px;">Hi${userName ? ' ' + userName : ''},</p>
-            <p style="color: #334155; font-size: 16px;">Your verification code is:</p>
-            <div style="text-align: center; margin: 24px 0;">
-              <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1e40af; background: #eff6ff; padding: 12px 24px; border-radius: 8px; border: 2px dashed #93c5fd;">${otp}</span>
+    const info = await withTimeout(
+      emailTransporter.sendMail({
+        from: '"Towntask" <noreply@towntask.app>',
+        to: toEmail,
+        subject: `Your OTP Code: ${otp}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #f8fafc; border-radius: 12px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #2563eb; margin: 0; font-size: 24px;">🛡️ Towntask</h1>
             </div>
-            <p style="color: #64748b; font-size: 14px;">This code expires in <strong>5 minutes</strong>. Do not share it with anyone.</p>
+            <div style="background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <p style="color: #334155; font-size: 16px;">Hi${userName ? ' ' + userName : ''},</p>
+              <p style="color: #334155; font-size: 16px;">Your verification code is:</p>
+              <div style="text-align: center; margin: 24px 0;">
+                <span style="font-size: 36px; font-weight: bold; letter-spacing: 8px; color: #1e40af; background: #eff6ff; padding: 12px 24px; border-radius: 8px; border: 2px dashed #93c5fd;">${otp}</span>
+              </div>
+              <p style="color: #64748b; font-size: 14px;">This code expires in <strong>5 minutes</strong>. Do not share it with anyone.</p>
+            </div>
+            <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 16px;">If you didn't request this, please ignore this email.</p>
           </div>
-          <p style="color: #94a3b8; font-size: 12px; text-align: center; margin-top: 16px;">If you didn't request this, please ignore this email.</p>
-        </div>
-      `,
-    });
+        `,
+      }),
+      OTP_EMAIL_TIMEOUT_MS,
+      `OTP email send timed out after ${OTP_EMAIL_TIMEOUT_MS}ms`
+    );
+
     const previewUrl = nodemailer.getTestMessageUrl(info);
     if (previewUrl) {
       console.info(`📧 OTP email preview: ${previewUrl}`);
@@ -309,112 +341,16 @@ io.on('connection', (socket) => {
 
 // ===== AUTH ROUTES =====
 
-// Send OTP (for both signin & signup)
+// OTP login has been disabled in favor of password-only authentication.
 app.post('/api/auth/send-otp', async (req, res) => {
-  try {
-    const { phone } = req.body;
-    if (!phone || phone.length < 10) {
-      return res.status(400).json({ error: 'Valid phone number is required' });
-    }
-
-    const otp = generateOTP();
-    otpStore.set(phone, {
-      ...(otpStore.get(phone) || {}),
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
-    });
-
-    console.info(`📱 OTP for ${phone}: ${otp}`);
-
-    // Check if user has email on file
-    const existingProfile = await Profile.findOne({ phone });
-    const userEmail = existingProfile?.email || null;
-    const maskedPhone = phone.slice(0, 2) + '****' + phone.slice(-4);
-    const maskedEmail = userEmail ? userEmail.replace(/(.{2})(.*)(@.*)/, '$1***$3') : null;
-
-    // Send OTP via email
-    let emailPreviewUrl = null;
-    if (userEmail) {
-      emailPreviewUrl = await sendOtpEmail(userEmail, otp, existingProfile?.name);
-    }
-
-    res.json({
-      success: true,
-      message: `OTP sent to ${maskedPhone}${maskedEmail ? ' and ' + maskedEmail : ''}`,
-      sentTo: { phone: maskedPhone, email: maskedEmail },
-      ...(process.env.NODE_ENV !== 'production' && { otp }),
-      ...(emailPreviewUrl && emailPreviewUrl !== 'sent' && { emailPreviewUrl }),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  return res.status(410).json({ error: 'OTP login is disabled. Please sign in with password.' });
 });
 
 app.post('/api/auth/verify-otp', async (req, res) => {
-  try {
-    const { phone, otp } = req.body;
-    const stored = otpStore.get(phone);
-
-    if (!stored || !stored.otp) {
-      return res.status(400).json({ error: 'No OTP found. Please request a new one.' });
-    }
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(phone);
-      return res.status(400).json({ error: 'OTP expired. Please request a new one.' });
-    }
-    if (stored.otp !== otp) {
-      return res.status(400).json({ error: 'Invalid OTP. Please try again.' });
-    }
-
-    // OTP verified — check if user exists
-    let profile = await Profile.findOne({ phone });
-    const isNewUser = !profile;
-
-    if (isNewUser && stored.name) {
-      // Create profile from signup data
-      const userId = 'user-' + phone;
-      const crypto = require('crypto');
-      const hashedPassword = stored.password ? crypto.createHash('sha256').update(stored.password).digest('hex') : '';
-      profile = await Profile.findOneAndUpdate(
-        { userId },
-        {
-          userId,
-          name: stored.name,
-          email: stored.email || '',
-          phone,
-          area: stored.area || '',
-          city: stored.area || '',
-          profileType: stored.profileType || 'worker',
-          password: hashedPassword,
-        },
-        { upsert: true, new: true, runValidators: true }
-      );
-    }
-
-    // Clear OTP
-    otpStore.delete(phone);
-
-    const userId = profile ? profile.userId : 'user-' + phone;
-
-    // Send login success email
-    if (profile?.email) {
-      sendLoginSuccessEmail(profile.email, profile.name, isNewUser ? 'Sign Up (OTP)' : 'OTP');
-    }
-
-    res.json({
-      success: true,
-      isNewUser,
-      userId,
-      profile: profile || null,
-      volunteerStatus: profile?.volunteerStatus || 'NOT_APPLIED',
-      token: Buffer.from(JSON.stringify({ userId, phone, ts: Date.now() })).toString('base64'),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  return res.status(410).json({ error: 'OTP login is disabled. Please sign in with password.' });
 });
 
-// Signup - store pending data, send OTP
+// Signup - create account directly with password
 app.post('/api/auth/signup', async (req, res) => {
   try {
     const { name, phone, email, area, profileType, password } = req.body;
@@ -423,40 +359,51 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Name and valid phone number are required' });
     }
 
+    if (!email || !/\S+@\S+\.\S+/.test(email)) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
     // Check if phone already registered
     const existing = await Profile.findOne({ phone });
     if (existing) {
       return res.status(409).json({ error: 'Phone number already registered. Please sign in.' });
     }
 
-    const otp = generateOTP();
-    otpStore.set(phone, {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-      name,
-      email,
-      area,
-      profileType,
-      password,
-    });
+    const userId = 'user-' + phone;
+    const crypto = require('crypto');
+    const hashedPassword = crypto.createHash('sha256').update(password).digest('hex');
 
-    console.info(`📱 Signup OTP for ${phone}: ${otp}`);
+    const profile = await Profile.findOneAndUpdate(
+      { userId },
+      {
+        userId,
+        name,
+        email: email || '',
+        phone,
+        area: area || '',
+        city: area || '',
+        profileType: profileType || 'worker',
+        password: hashedPassword,
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
 
-    const maskedPhone = phone.slice(0, 2) + '****' + phone.slice(-4);
-    const maskedEmail = email ? email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : null;
-
-    // Send OTP via email
-    let emailPreviewUrl = null;
-    if (email) {
-      emailPreviewUrl = await sendOtpEmail(email, otp, name);
+    if (profile?.email) {
+      sendLoginSuccessEmail(profile.email, profile.name, 'Sign Up (Password)');
     }
 
     res.json({
       success: true,
-      message: `OTP sent to ${maskedPhone}${maskedEmail ? ' and ' + maskedEmail : ''}`,
-      sentTo: { phone: maskedPhone, email: maskedEmail },
-      ...(process.env.NODE_ENV !== 'production' && { otp }),
-      ...(emailPreviewUrl && emailPreviewUrl !== 'sent' && { emailPreviewUrl }),
+      isNewUser: true,
+      userId,
+      profile,
+      volunteerStatus: profile?.volunteerStatus || 'NOT_APPLIED',
+      token: Buffer.from(JSON.stringify({ userId, phone, ts: Date.now() })).toString('base64'),
+      message: 'Account created successfully',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -465,10 +412,14 @@ app.post('/api/auth/signup', async (req, res) => {
 
 app.post('/api/auth/signin', async (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, password } = req.body;
 
     if (!phone || phone.length < 10) {
       return res.status(400).json({ error: 'Valid phone number is required' });
+    }
+
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required. OTP login is disabled.' });
     }
 
     const profile = await Profile.findOne({ phone });
@@ -476,30 +427,28 @@ app.post('/api/auth/signin', async (req, res) => {
       return res.status(404).json({ error: 'No account found with this number. Please sign up first.' });
     }
 
-    const otp = generateOTP();
-    otpStore.set(phone, {
-      otp,
-      expiresAt: Date.now() + 5 * 60 * 1000,
-    });
+    if (!profile.password) {
+      return res.status(400).json({ error: 'Password not set for this account. Please contact support.' });
+    }
 
-    console.info(`📱 Signin OTP for ${phone}: ${otp}`);
+    const crypto = require('crypto');
+    const hashedInput = crypto.createHash('sha256').update(password).digest('hex');
+    if (profile.password !== hashedInput) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
 
-    const maskedPhone = phone.slice(0, 2) + '****' + phone.slice(-4);
-    const maskedEmail = profile.email ? profile.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : null;
+    const userId = profile.userId;
 
-    // Send OTP via email
-    let emailPreviewUrl = null;
     if (profile.email) {
-      emailPreviewUrl = await sendOtpEmail(profile.email, otp, profile.name);
+      sendLoginSuccessEmail(profile.email, profile.name, 'Password');
     }
 
     res.json({
       success: true,
-      hasPassword: !!profile.password,
-      message: `OTP sent to ${maskedPhone}${maskedEmail ? ' and ' + maskedEmail : ''}`,
-      sentTo: { phone: maskedPhone, email: maskedEmail },
-      ...(process.env.NODE_ENV !== 'production' && { otp }),
-      ...(emailPreviewUrl && emailPreviewUrl !== 'sent' && { emailPreviewUrl }),
+      userId,
+      profile,
+      volunteerStatus: profile.volunteerStatus || 'NOT_APPLIED',
+      token: Buffer.from(JSON.stringify({ userId, phone, ts: Date.now() })).toString('base64'),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -519,7 +468,7 @@ app.post('/api/auth/signin-password', async (req, res) => {
       return res.status(404).json({ error: 'No account found with this number. Please sign up first.' });
     }
     if (!profile.password) {
-      return res.status(400).json({ error: 'Password not set. Please use OTP login and create a password from your profile.' });
+      return res.status(400).json({ error: 'Password not set for this account. Please contact support.' });
     }
 
     // Simple comparison (use bcrypt in production)
@@ -2314,17 +2263,28 @@ const startServer = async () => {
     tester.listen(PORT);
   } catch (err) {
     console.error('❌ MongoDB connection failed:', err.message);
+    const errMessage = err.message || '';
+    const isAtlasUri = MONGO_URI.includes('mongodb+srv://') || MONGO_URI.includes('.mongodb.net');
+    const isLocalMongoUri = MONGO_URI.includes('localhost') || MONGO_URI.includes('127.0.0.1');
+    const isRenderRuntime = process.env.RENDER === 'true' || Boolean(process.env.RENDER_SERVICE_ID);
     if (err.code) {
       console.error(`❌ MongoDB error code: ${err.code}`);
     }
-    if ((err.message || '').includes('bad auth')) {
+    if (errMessage.includes('bad auth')) {
       console.error('💡 Check Atlas DB username/password and ensure special chars in password are URL-encoded.');
-    } else if ((err.message || '').includes('EBADNAME') || (err.message || '').includes('ENOTFOUND')) {
+    } else if (errMessage.includes('EBADNAME') || errMessage.includes('ENOTFOUND')) {
       console.error('💡 MONGO_URI host appears malformed. Verify the exact Atlas connection string.');
-    } else if ((err.message || '').includes('Could not connect to any servers')) {
+    } else if (errMessage.includes('Could not connect to any servers')) {
+      if (isRenderRuntime && isAtlasUri) {
+        console.error('💡 Render uses cloud egress IPs, not your local machine IP. Atlas Network Access must allow Render traffic.');
+      }
       console.error('💡 Check Atlas IP Access List (0.0.0.0/0), cluster status, and network reachability.');
     }
-    console.error('💡 Make sure MongoDB is running on your machine (mongod)');
+    if (isLocalMongoUri) {
+      console.error('💡 Make sure MongoDB is running on your machine (mongod).');
+    } else if (isAtlasUri) {
+      console.error('💡 A local MongoDB Compass connection does not validate Render access; whitelist the deployment network in Atlas.');
+    }
     process.exit(1);
   }
 };

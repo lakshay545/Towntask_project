@@ -1,5 +1,6 @@
 // In production, use the backend URL from env; in dev, Vite proxy handles it
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 20000);
 
 // Helper to get user ID from localStorage
 const getUserId = () => {
@@ -26,10 +27,15 @@ if (!localStorage.getItem('userId')) {
 async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   const userId = getUserId();
+  const controller = options.signal ? null : new AbortController();
+  const timeoutId = controller
+    ? setTimeout(() => controller.abort(), API_TIMEOUT_MS)
+    : null;
 
   try {
     const response = await fetch(url, {
       ...options,
+      signal: controller ? controller.signal : options.signal,
       headers: {
         'Content-Type': 'application/json',
         'x-user-id': userId,
@@ -45,7 +51,12 @@ async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
     return data;
   } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Request timed out after ${Math.round(API_TIMEOUT_MS / 1000)} seconds. Please retry.`);
+    }
     throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }
 

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import OtpInput from '../components/auth/OtpInput';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -13,7 +12,7 @@ interface SignUpPageProps {
   onGoToSignIn: () => void;
 }
 
-type Step = 'details' | 'location' | 'otp';
+type Step = 'details' | 'location';
 
 export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps) {
   const [step, setStep] = useState<Step>('details');
@@ -24,9 +23,6 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
   const [showPassword, setShowPassword] = useState(false);
   const [area, setArea] = useState('');
   const [profileType, setProfileType] = useState<'worker' | 'provider'>('worker');
-  const [devOtp, setDevOtp] = useState('');
-  const [emailPreviewUrl, setEmailPreviewUrl] = useState('');
-  const [sentTo, setSentTo] = useState<{ phone?: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -39,53 +35,19 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
     setStep('location');
   };
 
-  const handleLocationNext = async () => {
+  const handleCreateAccount = async () => {
     if (!area.trim()) return setError('Please enter your location');
     setError('');
     setLoading(true);
+
     try {
       const res = await authApi.signup({ name, phone, email, area, profileType, password });
-      setDevOtp(res.otp || '');
-      setEmailPreviewUrl(res.emailPreviewUrl || '');
-      if (res.sentTo) setSentTo(res.sentTo);
-      setStep('otp');
-    } catch (err: any) {
-      const message = err.message || 'Failed to send OTP';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleOtpComplete = async (otp: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await authApi.verifyOtp({ phone, otp });
       if (res.success) {
         toast.success('Account created successfully');
         onSuccess({ userId: res.userId, token: res.token, profile: res.profile, isNewUser: res.isNewUser });
       }
     } catch (err: any) {
-      const message = err.message || 'Invalid OTP';
-      setError(message);
-      toast.error(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await authApi.sendOtp({ phone });
-      setDevOtp(res.otp || '');
-      setEmailPreviewUrl(res.emailPreviewUrl || '');
-      setError('');
-    } catch (err: any) {
-      const message = err.message || 'Failed to resend OTP';
+      const message = err.message || 'Failed to create account';
       setError(message);
       toast.error(message);
     } finally {
@@ -99,7 +61,6 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
 
       <div className="w-full max-w-5xl relative animate-fade-in-up grid lg:grid-cols-5 overflow-hidden rounded-2xl shadow-xl border bg-card">
-        {/* Left panel */}
         <div className="hidden lg:flex lg:col-span-2 relative bg-gradient-to-br from-primary/90 to-primary flex-col items-center justify-center p-8 text-white">
           <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=900&fit=crop&q=80')", backgroundSize: 'cover', backgroundPosition: 'center' }} />
           <div className="relative z-10 space-y-6 text-center">
@@ -114,7 +75,7 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
               {[
                 { icon: '📍', text: 'Location-based job matching' },
                 { icon: '⚡', text: 'Free to use forever' },
-                { icon: '🔒', text: 'Secure OTP verification' },
+                { icon: '🔐', text: 'Secure password login' },
                 { icon: '🤝', text: 'Direct employer connect' },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 rounded-lg bg-white/10 backdrop-blur-sm px-4 py-2.5 text-sm">
@@ -126,44 +87,38 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
           </div>
         </div>
 
-        {/* Right - form */}
         <div className="lg:col-span-3 p-0">
           <Card className="border-0 shadow-none">
             <CardHeader className="space-y-3 pb-4">
-              {step !== 'details' && (
-                <button onClick={() => setStep(step === 'otp' ? 'location' : 'details')} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
+              {step === 'location' && (
+                <button onClick={() => setStep('details')} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </button>
               )}
 
-              {/* Step indicator */}
               <div className="flex items-center gap-2">
-                {['details', 'location', 'otp'].map((s, i) => (
+                {['details', 'location'].map((s, i) => (
                   <div key={s} className="flex items-center gap-2">
                     <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
                       step === s ? 'bg-primary text-primary-foreground shadow-md' :
-                      ['details', 'location', 'otp'].indexOf(step) > i ? 'bg-green-500 text-white' :
+                      ['details', 'location'].indexOf(step) > i ? 'bg-green-500 text-white' :
                       'bg-muted text-muted-foreground'
                     }`}>
-                      {['details', 'location', 'otp'].indexOf(step) > i ? '✓' : i + 1}
+                      {['details', 'location'].indexOf(step) > i ? '✓' : i + 1}
                     </div>
-                    {i < 2 && <div className={`h-0.5 w-8 rounded ${['details', 'location', 'otp'].indexOf(step) > i ? 'bg-green-500' : 'bg-muted'}`} />}
+                    {i < 1 && <div className={`h-0.5 w-10 rounded ${['details', 'location'].indexOf(step) > i ? 'bg-green-500' : 'bg-muted'}`} />}
                   </div>
                 ))}
               </div>
 
               <div>
                 <CardTitle className="text-2xl">
-                  {step === 'details' && 'Create Account'}
-                  {step === 'location' && 'Your Location'}
-                  {step === 'otp' && 'Verify Phone'}
+                  {step === 'details' ? 'Create Account' : 'Your Location'}
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  {step === 'details' && 'Enter your basic details to get started'}
-                  {step === 'location' && 'Enter your area so we can show you local jobs'}
-                  {step === 'otp' && (sentTo
-                    ? `OTP sent to ${sentTo.phone || phone}${sentTo.email ? ` & ${sentTo.email}` : ''}`
-                    : `Enter the 6-digit OTP sent to +91 ${phone}`)}
+                  {step === 'details'
+                    ? 'Enter your basic details to get started'
+                    : 'Enter your area so we can show you local jobs'}
                 </CardDescription>
               </div>
             </CardHeader>
@@ -175,7 +130,6 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
                 </div>
               )}
 
-              {/* Step 1: Basic Details */}
               {step === 'details' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -260,7 +214,6 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
                 </div>
               )}
 
-              {/* Step 2: Location */}
               {step === 'location' && (
                 <div className="space-y-5">
                   <div className="rounded-xl bg-primary/5 border border-primary/10 p-4 flex items-start gap-3">
@@ -291,65 +244,9 @@ export default function SignUpPage({ onSuccess, onGoToSignIn }: SignUpPageProps)
                     </div>
                   </div>
 
-                  <Button onClick={handleLocationNext} className="w-full h-11 shadow-md hover:shadow-lg transition-shadow" disabled={loading || !area.trim()}>
-                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Sending OTP...</> : 'Send OTP & Continue'}
+                  <Button onClick={handleCreateAccount} className="w-full h-11 shadow-md hover:shadow-lg transition-shadow" disabled={loading || !area.trim()}>
+                    {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...</> : 'Create Account'}
                   </Button>
-                </div>
-              )}
-
-              {/* Step 3: OTP */}
-              {step === 'otp' && (
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-                      <Phone className="h-8 w-8 text-primary" />
-                    </div>
-                  </div>
-
-                  {sentTo && (
-                    <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 space-y-1.5">
-                      <p className="text-xs font-semibold text-blue-700">OTP sent to:</p>
-                      {sentTo.phone && (
-                        <div className="flex items-center gap-2 text-sm text-blue-600">
-                          <Phone className="h-3.5 w-3.5" />
-                          <span className="font-mono">{sentTo.phone}</span>
-                        </div>
-                      )}
-                      {sentTo.email && (
-                        <div className="flex items-center gap-2 text-sm text-blue-600">
-                          <Mail className="h-3.5 w-3.5" />
-                          <span className="font-mono">{sentTo.email}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <OtpInput onComplete={handleOtpComplete} disabled={loading} />
-
-                  {devOtp && (
-                    <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-center">
-                      <p className="text-xs text-amber-600 font-medium">Dev Mode — OTP: <span className="font-mono text-base font-bold text-amber-800">{devOtp}</span></p>
-                      {emailPreviewUrl ? (
-                        <a href={emailPreviewUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 mt-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm">
-                          <Mail className="h-4 w-4" /> View OTP Email ✉️
-                        </a>
-                      ) : (
-                        <p className="text-[10px] text-amber-500 mt-1">OTP also sent to your email ✉️</p>
-                      )}
-                    </div>
-                  )}
-
-                  {loading && (
-                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" /> Verifying...
-                    </div>
-                  )}
-
-                  <div className="text-center">
-                    <button onClick={handleResendOtp} disabled={loading} className="text-sm text-primary hover:underline disabled:opacity-50 disabled:cursor-not-allowed">
-                      Didn't receive OTP? Resend
-                    </button>
-                  </div>
                 </div>
               )}
             </CardContent>
