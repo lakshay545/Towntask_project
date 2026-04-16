@@ -25,7 +25,7 @@ JavaScript (ES6+): Utilized for dynamic scripting and seamless integration of mo
 Motoko: Bringing decentralized logic into the fold, specifically for Internet Computer (ICP) integrations and blockchain-backed security.<br>
 
 *The MERN Powerhouse*<br>
-MongoDB: A flexible NoSQL database using Geospatial Indexing to handle lightning-fast "Worker-to-City" matching.<br>
+MongoDB: A flexible NoSQL Database using Geospatial indexing to handle lightning-fast "Worker-to-City" matching.<br>
 
 Express.js: A minimalist web framework for building robust, scalable RESTful APIs.<br>
 
