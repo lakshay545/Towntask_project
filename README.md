@@ -50,7 +50,7 @@ Tailwind CSS: For a modern, utility-first design that remains responsive on ever
 
 React-Toastify: Providing sleek, real-time "Toast" notifications for every user action.<br>
 
-**🛡️ Safety & Security**<br><br>
+**🛡️Safety & Security**<br><br>
 Towntask is built with a Safety-First mindset. The Emergency feature is pinned globally as a Floating Action Button (FAB). When triggered, it logs the user's precise location and offers immediate dialer access to local helplines (Police: 100, Ambulance: 102).<br>
 
 **🤝 Contributing**<br><br>
